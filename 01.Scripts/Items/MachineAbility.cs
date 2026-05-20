@@ -1,0 +1,92 @@
+﻿using System;
+using Code.Scripts.Entities;
+using Code.Scripts.Players;
+using UnityEngine;
+
+namespace Code.Scripts.Items
+{
+    public class MachineAbility : MonoBehaviour, IEntityComponent
+    {
+        [SerializeField] private float duration = 3f;
+        [SerializeField] private float cooldown = 15f;  
+
+        private Player _player;
+        public float _cooldownTimer = 0f;
+        private bool _isActive = false;
+
+        public event Action OnClickSkill;
+
+        public void Initialize(Entity entity)
+        {
+            _player = entity as Player;
+            _cooldownTimer = cooldown;
+            gameObject.SetActive(false);
+            
+            if (_player != null)
+            {
+                _player.PlayerInput.IsMachineGun = false;
+            }
+        }
+        
+        private void OnEnable()
+        {
+            _isActive = false;
+            _cooldownTimer = cooldown;
+
+            if (_player != null)
+            {
+                _player.PlayerInput.IsMachineGun = false;
+            }
+        }
+
+        private void Start()
+        {
+            _player.PlayerInput.OnMachinePressed += HandleMachineClick;
+        }
+
+        private void Update()
+        {
+            if (_isActive) return;
+
+            if (_cooldownTimer > 0)
+            {
+                _cooldownTimer -= Time.deltaTime;
+                if (_cooldownTimer < 0)
+                {
+                    _cooldownTimer = 0;
+                    _player.PlayerInput.IsCanMachine = true;
+                }
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _player.PlayerInput.OnMachinePressed -= HandleMachineClick;
+        }
+
+        private void HandleMachineClick()
+        {
+            if (_cooldownTimer > 0 || _isActive || !_player.PlayerInput.IsCanMachine)
+            {
+                return;
+            }
+            OnClickSkill?.Invoke();
+            
+            _isActive = true;
+            _player.PlayerInput.IsCanMachine = false;
+            _player.PlayerInput.IsMachineGun = true;
+
+            Invoke(nameof(StopMachineGun), duration);
+        }
+
+        private void StopMachineGun()
+        {
+            _isActive = false;
+            _player.PlayerInput.IsMachineGun = false;
+            _cooldownTimer = cooldown;
+
+            _player.PlayerInput.ForceStopAttack();
+        }
+        
+    }
+}
